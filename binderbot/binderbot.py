@@ -12,12 +12,15 @@ import structlog
 import time
 import json
 
+import nbformat
+from nbconvert.preprocessors import ClearOutputPreprocessor
+
 logger = structlog.get_logger()
 
 
 class OperationError(Exception):
     pass
-    
+
 
 class BinderUser:
     class States(Enum):
@@ -130,7 +133,8 @@ class BinderUser:
     async def get_contents(self, path):
         headers = {'Authorization': f'token {self.token}'}
         resp = await self.session.get(self.notebook_url / 'api/contents' / path, headers=headers)
-        return await resp.json()
+        resp_json = await resp.json()
+        return resp_json['content']
 
 
     async def put_contents(self, path, nb_data):
@@ -277,8 +281,6 @@ class BinderUser:
         await self.put_contents(notebook_filename, nb)
 
 
-import nbformat
-from nbconvert.preprocessors import ClearOutputPreprocessor
 def open_nb_and_strip_output(fname):
     cop = ClearOutputPreprocessor()
     with open(fname) as f:

@@ -1,26 +1,37 @@
 """Console script for binderbot."""
-import sys
+import asyncio
+from functools import update_wrapper
 import os
+import sys
+
 import click
 import nbformat
+
 from .binderbot import BinderUser
+
+# https://github.com/pallets/click/issues/85#issuecomment-43378930
+def coro(f):
+    f = asyncio.coroutine(f)
+    def wrapper(*args, **kwargs):
+        loop = asyncio.get_event_loop()
+        return loop.run_until_complete(f(*args, **kwargs))
+    return update_wrapper(wrapper, f)
 
 @click.command()
 @click.option('--binder-url', default='https://binder.pangeo.io',
               help='URL of binder service.')
 @click.option('--repo', help='The GitHub repo to use for the binder image.')
-@click.option('--ref', defualt='master',
+@click.option('--ref', default='master',
               help='The branch or commit`.')
 @click.option('--output-dir', nargs=1,
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
               help='Directory in which to save the executed notebooks.')
-@click.argument('filenames', nargs=-1, type=click.Path(exists=True),
-                help='Paths to Jupyter notebooks to run on the remote binder.')
-def main(binder_url, repo, ref, output_dir, filenames):
+@click.argument('filenames', nargs=-1, type=click.Path(exists=True))
+@coro
+async def main(binder_url, repo, ref, output_dir, filenames):
     """Run local notebooks on a remote binder."""
 
     # validate filename inputs
-    basenames = [basename(fname) for fname in filenames]
     non_notebook_files = [fname for fname in filenames
                           if not fname.endswith('.ipynb')]
     if len(non_notebook_files) > 0:
@@ -32,14 +43,16 @@ def main(binder_url, repo, ref, output_dir, filenames):
         await jovyan.start_binder()
         await jovyan.start_kernel()
 
-        # run one notebook at a time to avoid overloading the binder
+        # could think about asyncifying this whole loop
+        # for now, we run one notebook at a time to avoid overloading the binder
         for fname in filenames:
             await jovyan.upload_local_notebook(fname)
-            await jovyan.execute_notebook(nbfile)
-            nb_data = await jovyan.get_contents(nbfile)
+            await jovyan.execute_notebook(fname)
+            nb_data = await jovyan.get_contents(fname)
+            nb = nbformat.from_dict(nb_data)
             output_fname = os.path.join(output_dir, fname) if output_dir else fname
             with open(output_fname, 'w', encoding='utf-8') as f:
-                nbformat.write(nb_data, f)
+                nbformat.write(nb, f)
 
         await jovyan.stop_kernel()
 
