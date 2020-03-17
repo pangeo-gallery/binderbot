@@ -10,7 +10,7 @@ with open('README.rst') as readme_file:
 with open('HISTORY.rst') as history_file:
     history = history_file.read()
 
-requirements = ['Click>=7.0', 'aiohttp', 'yarl', 'structlog', 'nbformat']
+requirements = ['Click>=7.0', 'aiohttp', 'yarl', 'structlog', 'nbformat', 'nbconvert']
 
 setup_requirements = ['pytest-runner', ]
 

@@ -3,3 +3,4 @@ aiohttp
 yarl
 structlog
 nbformat
+nbconvert
