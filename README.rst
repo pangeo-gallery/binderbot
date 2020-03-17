@@ -6,8 +6,8 @@ Binderbot
 .. image:: https://img.shields.io/pypi/v/binderbot.svg
         :target: https://pypi.python.org/pypi/binderbot
 
-.. image:: https://img.shields.io/travis/rabernat/binderbot.svg
-        :target: https://travis-ci.com/rabernat/binderbot
+.. image:: https://img.shields.io/travis/pangeo-gallery/binderbot.svg
+        :target: https://travis-ci.com/pangeo-gallery/binderbot
 
 .. image:: https://readthedocs.org/projects/binderbot/badge/?version=latest
         :target: https://binderbot.readthedocs.io/en/latest/?badge=latest
