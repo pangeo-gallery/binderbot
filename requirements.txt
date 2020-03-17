@@ -2,3 +2,4 @@ Click>=7.0
 aiohttp
 yarl
 structlog
+nbformat
