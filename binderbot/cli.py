@@ -38,21 +38,33 @@ async def main(binder_url, repo, ref, output_dir, filenames):
         raise ValueError(f"The following filenames don't look like notebooks: "
                          f"{non_notebook_files}")
 
+    click.echo(f"✅ Found the following notebooks: {filenames}")
+    click.echo(f"⌛️ Starting binder\n "
+               f"     binder_url: {binder_url}\n"
+               f"     repo: {repo}\n"
+               f"     ref: {ref}")
+
     # inputs look good, start up binder
     async with BinderUser(binder_url, repo, ref) as jovyan:
         await jovyan.start_binder()
         await jovyan.start_kernel()
-
+        click.echo(f"✅ Binder and kernel started successfully.")
         # could think about asyncifying this whole loop
         # for now, we run one notebook at a time to avoid overloading the binder
         for fname in filenames:
+            click.echo(f"⌛️ Uploading {fname}...", nl=False)
             await jovyan.upload_local_notebook(fname)
+            click.echo("✅")
+            click.echo(f"⌛️ Executing {fname}...", nl=False)
             await jovyan.execute_notebook(fname)
+            click.echo("✅")
+            click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
             nb_data = await jovyan.get_contents(fname)
             nb = nbformat.from_dict(nb_data)
             output_fname = os.path.join(output_dir, fname) if output_dir else fname
             with open(output_fname, 'w', encoding='utf-8') as f:
                 nbformat.write(nb, f)
+            click.echo("✅")
 
         await jovyan.stop_kernel()
 
