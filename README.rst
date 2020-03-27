@@ -13,7 +13,8 @@ Binderbot
         :target: https://binderbot.readthedocs.io/en/latest/?badge=latest
         :alt: Documentation Status
 
-.. image:: https://img.shields.io/github/license/pangeo-gallery/binderbot   :alt: GitHub
+.. image:: https://img.shields.io/github/license/pangeo-gallery/binderbot
+        :alt: GitHub
 
 
 A simple CLI to interact with binder.
