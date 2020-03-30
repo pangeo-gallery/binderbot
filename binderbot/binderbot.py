@@ -11,6 +11,7 @@ import async_timeout
 import structlog
 import time
 import json
+import textwrap
 
 import nbformat
 from nbconvert.preprocessors import ClearOutputPreprocessor
@@ -154,7 +155,7 @@ class BinderUser:
             },
             "metadata": {},
             "content": {
-                "code": code,
+                "code": textwrap.dedent(code),
                 "silent": False,
                 "store_history": True,
                 "user_expressions": {},
