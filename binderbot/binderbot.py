@@ -1,4 +1,8 @@
-"""Main module."""
+"""Main module.
+
+Much of this code was adopted from Hubtraf, by Yuvi Panda:
+https://github.com/yuvipanda/hubtraf/blob/master/hubtraf/user.py
+"""
 
 from enum import Enum, auto
 import aiohttp
