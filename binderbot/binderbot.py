@@ -52,7 +52,7 @@ class BinderUser:
         self.state = BinderUser.States.CLEAR
         self.log = logger.bind()
 
-    async def start_binder(self, timeout=300, spawn_refresh_time=20):
+    async def start_binder(self, timeout=3000, spawn_refresh_time=20):
         start_time = time.monotonic()
         self.log.msg(f'Binder: Starting', action='binder-start', phase='start')
 
