@@ -39,7 +39,7 @@ async def main(binder_url, repo, ref, output_dir, filenames):
                          f"{non_notebook_files}")
 
     click.echo(f"✅ Found the following notebooks: {filenames}")
-    click.echo(f"⌛️ Starting binder\n "
+    click.echo(f"⌛️ Starting binder\n"
                f"     binder_url: {binder_url}\n"
                f"     repo: {repo}\n"
                f"     ref: {ref}")
@@ -51,22 +51,30 @@ async def main(binder_url, repo, ref, output_dir, filenames):
         click.echo(f"✅ Binder and kernel started successfully.")
         # could think about asyncifying this whole loop
         # for now, we run one notebook at a time to avoid overloading the binder
+        errors = {}
         for fname in filenames:
-            click.echo(f"⌛️ Uploading {fname}...", nl=False)
-            await jovyan.upload_local_notebook(fname)
-            click.echo("✅")
-            click.echo(f"⌛️ Executing {fname}...", nl=False)
-            await jovyan.execute_notebook(fname)
-            click.echo("✅")
-            click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
-            nb_data = await jovyan.get_contents(fname)
-            nb = nbformat.from_dict(nb_data)
-            output_fname = os.path.join(output_dir, fname) if output_dir else fname
-            with open(output_fname, 'w', encoding='utf-8') as f:
-                nbformat.write(nb, f)
-            click.echo("✅")
+            try:
+                click.echo(f"⌛️ Uploading {fname}...", nl=False)
+                await jovyan.upload_local_notebook(fname)
+                click.echo("✅")
+                click.echo(f"⌛️ Executing {fname}...", nl=False)
+                await jovyan.execute_notebook(fname)
+                click.echo("✅")
+                click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
+                nb_data = await jovyan.get_contents(fname)
+                nb = nbformat.from_dict(nb_data)
+                output_fname = os.path.join(output_dir, fname) if output_dir else fname
+                with open(output_fname, 'w', encoding='utf-8') as f:
+                    nbformat.write(nb, f)
+                click.echo("✅")
+            except Exception as e:
+                errors[fname] = e
+                click.echo(f'❌ error running {fname}: {e}')
 
         await jovyan.stop_kernel()
+
+        if len(errors) > 0:
+            raise RuntimeError(str(errors))
 
         # TODO: shut down binder
         # await jovyan.shutdown_binder()
