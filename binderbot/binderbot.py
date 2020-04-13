@@ -144,7 +144,7 @@ class BinderUser:
 
     async def put_contents(self, path, nb_data):
         headers = {'Authorization': f'token {self.token}'}
-        data = {'content': nb_data}
+        data = {'content': nb_data, "type": "notebook"}
         resp = await self.session.put(self.notebook_url / 'api/contents' / path,
                                       json=data, headers=headers)
         resp.raise_for_status()
