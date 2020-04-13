@@ -32,6 +32,11 @@ def example_nb_data():
                  'text': 'Ryans-MacBook-Pro.local\n'}],
                'source': 'import socket\nprint(socket.gethostname())'},
               {'cell_type': 'code',
+               'execution_count': 0,
+               'metadata': {},
+               'outputs': [],
+               'source': 'import time\ntime.sleep(2)'},
+              {'cell_type': 'code',
                'execution_count': None,
                'metadata': {},
                'outputs': [],
@@ -64,10 +69,10 @@ def test_cli_upload_execute_download(tmp_path, example_nb_data):
     runner = CliRunner()
     args = ["--binder-url", "http://mybinder.org",
             "--repo", "binder-examples/requirements",
-            "--ref", "master",
+            "--ref", "master", "--nb-timeout", "10",
             fname]
     result = runner.invoke(cli.main, args)
-    assert result.exit_code == 0
+    assert result.exit_code == 0, result.output
     # assert 'binderbot.cli.main' in result.output
 
     with open(fname) as f:

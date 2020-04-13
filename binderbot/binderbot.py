@@ -172,7 +172,7 @@ class BinderUser:
         }
 
 
-    async def run_code(self, code, execute_timeout=60):
+    async def run_code(self, code):
         """Run code and return stdout, stderr."""
         assert self.state == BinderUser.States.KERNEL_STARTED
 

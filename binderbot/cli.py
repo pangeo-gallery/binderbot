@@ -26,9 +26,14 @@ def coro(f):
 @click.option('--output-dir', nargs=1,
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
               help='Directory in which to save the executed notebooks.')
+@click.option("--nb-timeout", default=600,
+              help="Maximum execution time (in second) for each notebook.")
+@click.option("--binder-start-timeout", default=600,
+              help="Maximum time (in seconds) to wait for binder to start.")
 @click.argument('filenames', nargs=-1, type=click.Path(exists=True))
 @coro
-async def main(binder_url, repo, ref, output_dir, filenames):
+async def main(binder_url, repo, ref, output_dir, nb_timeout,
+               binder_start_timeout, filenames):
     """Run local notebooks on a remote binder."""
 
     # validate filename inputs
@@ -46,7 +51,7 @@ async def main(binder_url, repo, ref, output_dir, filenames):
 
     # inputs look good, start up binder
     async with BinderUser(binder_url, repo, ref) as jovyan:
-        await jovyan.start_binder()
+        await jovyan.start_binder(timeout=binder_start_timeout)
         await jovyan.start_kernel()
         click.echo(f"✅ Binder and kernel started successfully.")
         # could think about asyncifying this whole loop
@@ -58,7 +63,7 @@ async def main(binder_url, repo, ref, output_dir, filenames):
                 await jovyan.upload_local_notebook(fname)
                 click.echo("✅")
                 click.echo(f"⌛️ Executing {fname}...", nl=False)
-                await jovyan.execute_notebook(fname)
+                await jovyan.execute_notebook(fname, timeout=nb_timeout)
                 click.echo("✅")
                 click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
                 nb_data = await jovyan.get_contents(fname)
