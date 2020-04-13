@@ -26,9 +26,14 @@ def coro(f):
 @click.option('--output-dir', nargs=1,
               type=click.Path(exists=True, file_okay=False, dir_okay=True),
               help='Directory in which to save the executed notebooks.')
+@click.option("--nb-timeout", default=600,
+              help="Maximum execution time (in second) for each notebook.")
+@click.option("--binder-start-timeout", default=600,
+              help="Maximum time (in seconds) to wait for binder to start.")
 @click.argument('filenames', nargs=-1, type=click.Path(exists=True))
 @coro
-async def main(binder_url, repo, ref, output_dir, filenames):
+async def main(binder_url, repo, ref, output_dir, nb_timeout,
+               binder_start_timeout, filenames):
     """Run local notebooks on a remote binder."""
 
     # validate filename inputs
@@ -39,34 +44,42 @@ async def main(binder_url, repo, ref, output_dir, filenames):
                          f"{non_notebook_files}")
 
     click.echo(f"✅ Found the following notebooks: {filenames}")
-    click.echo(f"⌛️ Starting binder\n "
+    click.echo(f"⌛️ Starting binder\n"
                f"     binder_url: {binder_url}\n"
                f"     repo: {repo}\n"
                f"     ref: {ref}")
 
     # inputs look good, start up binder
     async with BinderUser(binder_url, repo, ref) as jovyan:
-        await jovyan.start_binder()
+        await jovyan.start_binder(timeout=binder_start_timeout)
         await jovyan.start_kernel()
         click.echo(f"✅ Binder and kernel started successfully.")
         # could think about asyncifying this whole loop
         # for now, we run one notebook at a time to avoid overloading the binder
+        errors = {}
         for fname in filenames:
-            click.echo(f"⌛️ Uploading {fname}...", nl=False)
-            await jovyan.upload_local_notebook(fname)
-            click.echo("✅")
-            click.echo(f"⌛️ Executing {fname}...", nl=False)
-            await jovyan.execute_notebook(fname)
-            click.echo("✅")
-            click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
-            nb_data = await jovyan.get_contents(fname)
-            nb = nbformat.from_dict(nb_data)
-            output_fname = os.path.join(output_dir, fname) if output_dir else fname
-            with open(output_fname, 'w', encoding='utf-8') as f:
-                nbformat.write(nb, f)
-            click.echo("✅")
+            try:
+                click.echo(f"⌛️ Uploading {fname}...", nl=False)
+                await jovyan.upload_local_notebook(fname)
+                click.echo("✅")
+                click.echo(f"⌛️ Executing {fname}...", nl=False)
+                await jovyan.execute_notebook(fname, timeout=nb_timeout)
+                click.echo("✅")
+                click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
+                nb_data = await jovyan.get_contents(fname)
+                nb = nbformat.from_dict(nb_data)
+                output_fname = os.path.join(output_dir, fname) if output_dir else fname
+                with open(output_fname, 'w', encoding='utf-8') as f:
+                    nbformat.write(nb, f)
+                click.echo("✅")
+            except Exception as e:
+                errors[fname] = e
+                click.echo(f'❌ error running {fname}: {e}')
 
         await jovyan.stop_kernel()
+
+        if len(errors) > 0:
+            raise RuntimeError(str(errors))
 
         # TODO: shut down binder
         # await jovyan.shutdown_binder()
