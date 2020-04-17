@@ -16,11 +16,16 @@ import structlog
 import time
 import json
 import textwrap
+import re
 
 import nbformat
 from nbconvert.preprocessors import ClearOutputPreprocessor
 
 logger = structlog.get_logger()
+
+# https://stackoverflow.com/questions/14693701/how-can-i-remove-the-ansi-escape-sequences-from-a-string-in-python
+def _ansi_escape(text):
+    return re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])').sub('', text)
 
 
 class OperationError(Exception):
@@ -35,7 +40,7 @@ class BinderUser:
         KERNEL_STARTED = 4
 
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(headers={'User-Agent': 'BinderBot-cli v0.1'})
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
@@ -225,8 +230,10 @@ class BinderUser:
                             #if msg_type == 'execute_result':
                             #    response = msg['content']['data']['text/plain']
                             if msg_type == 'error':
-                                traceback = msg['content']['traceback']
-                                self.log.msg('Code Execute: Error', action='code-execute', phase='error', traceback=traceback)
+                                traceback = _ansi_escape('\n'.join(msg['content']['traceback']))
+                                self.log.msg('Code Execute: Error', action='code-execute',
+                                             phase='error',
+                                             traceback=traceback)
                                 raise OperationError()
                             elif msg_type == 'stream':
                                 response = msg['content']['text']
@@ -262,10 +269,14 @@ class BinderUser:
         stdout, stderr = await self.run_code(code)
         return json.loads(stdout)
 
-    async def execute_notebook(self, notebook_filename, timeout=600):
+    async def execute_notebook(self, notebook_filename, timeout=600,
+                               env_vars={}):
+        env_var_str = str(env_vars)
         # https://nbconvert.readthedocs.io/en/latest/execute_api.html
         code = f"""
+        import os
         import nbformat
+        os.environ.update({env_var_str})
         from nbconvert.preprocessors import ExecutePreprocessor
         ep = ExecutePreprocessor(timeout={timeout})
         print("Processing {notebook_filename}")

@@ -30,10 +30,12 @@ def coro(f):
               help="Maximum execution time (in second) for each notebook.")
 @click.option("--binder-start-timeout", default=600,
               help="Maximum time (in seconds) to wait for binder to start.")
+@click.option("--pass-env-var", "-e", multiple=True,
+              help="Environment variables to pass to the binder execution environment.")
 @click.argument('filenames', nargs=-1, type=click.Path(exists=True))
 @coro
 async def main(binder_url, repo, ref, output_dir, nb_timeout,
-               binder_start_timeout, filenames):
+               binder_start_timeout, pass_env_var, filenames):
     """Run local notebooks on a remote binder."""
 
     # validate filename inputs
@@ -49,6 +51,8 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
                f"     repo: {repo}\n"
                f"     ref: {ref}")
 
+    extra_env_vars = {k: os.environ[k] for k in pass_env_var}
+
     # inputs look good, start up binder
     async with BinderUser(binder_url, repo, ref) as jovyan:
         await jovyan.start_binder(timeout=binder_start_timeout)
@@ -63,7 +67,8 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
                 await jovyan.upload_local_notebook(fname)
                 click.echo("✅")
                 click.echo(f"⌛️ Executing {fname}...", nl=False)
-                await jovyan.execute_notebook(fname, timeout=nb_timeout)
+                await jovyan.execute_notebook(fname, timeout=nb_timeout,
+                                              env_vars=extra_env_vars)
                 click.echo("✅")
                 click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
                 nb_data = await jovyan.get_contents(fname)
