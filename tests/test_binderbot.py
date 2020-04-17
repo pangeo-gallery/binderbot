@@ -65,7 +65,7 @@ def test_cli_upload_execute_download(tmp_path, example_nb_data):
     hostname = nb['cells'][0]['outputs'][0]['text']
     assert hostname.startswith('jupyter-binder-')
     remote_env_var_value = nb['cells'][1]['outputs'][0]['text']
-    assert remote_env_var_value == env['MY_VAR'].rstrip()
+    assert remote_env_var_value.rstrip() == env['MY_VAR']
 
     # help_result = runner.invoke(cli.main, ['--help'])
     # assert help_result.exit_code == 0
