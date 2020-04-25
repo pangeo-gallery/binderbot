@@ -38,8 +38,6 @@ def example_nb_data():
                      'nbformat_minor': 4}
     return nbformat.from_dict(nbdata)
 
-    return tmpdir
-
 
 def test_cli_upload_execute_download(tmp_path, example_nb_data):
     """Test the CLI."""
