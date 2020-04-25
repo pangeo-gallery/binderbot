@@ -98,7 +98,9 @@ class BinderUser:
         # So we can't make requests to the hub API.
         # FIXME: Provide hub auth tokens from binderhub API
         nbclient = NotebookClient(self.session, self.notebook_url, self.token, self.log)
-        async with nbclient.start_kernel() as kernel:
+        # Don't try to stop the kernel when we are done executin
+        # We don't expect the notebook server to be around still
+        async with nbclient.start_kernel(cleanup=False) as kernel:
             await kernel.run_code("""
             import os
             import signal
@@ -123,7 +125,7 @@ class NotebookClient:
         }
 
     @asynccontextmanager
-    async def start_kernel(self):
+    async def start_kernel(self, cleanup=True):
         self.log.msg('Kernel: Starting', action='kernel-start', phase='start')
         start_time = time.monotonic()
 
@@ -142,7 +144,8 @@ class NotebookClient:
         try:
             yield k
         finally:
-            await k.stop_kernel()
+            if cleanup:
+                await k.stop_kernel()
 
     # https://github.com/jupyter/jupyter/wiki/Jupyter-Notebook-Server-API#notebook-and-file-contents-api
     async def get_contents(self, path):
