@@ -7,7 +7,8 @@ import sys
 import click
 import nbformat
 
-from .binderbot import BinderUser, NotebookClient
+from .binderbot import BinderUser
+from .notebookclient import NotebookClient
 
 # https://github.com/pallets/click/issues/85#issuecomment-43378930
 def coro(f):
