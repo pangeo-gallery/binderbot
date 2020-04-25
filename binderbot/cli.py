@@ -57,32 +57,30 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
     async with BinderUser(binder_url, repo, ref) as jovyan:
         await jovyan.start_binder(timeout=binder_start_timeout)
         nb = NotebookClient(jovyan.session, jovyan.notebook_url, jovyan.token, jovyan.log)
-        await nb.start_kernel()
-        click.echo(f"✅ Binder and kernel started successfully.")
-        # could think about asyncifying this whole loop
-        # for now, we run one notebook at a time to avoid overloading the binder
-        errors = {}
-        for fname in filenames:
-            try:
-                click.echo(f"⌛️ Uploading {fname}...", nl=False)
-                await nb.upload_local_notebook(fname)
-                click.echo("✅")
-                click.echo(f"⌛️ Executing {fname}...", nl=False)
-                await nb.execute_notebook(fname, timeout=nb_timeout,
-                                              env_vars=extra_env_vars)
-                click.echo("✅")
-                click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
-                nb_data = await nb.get_contents(fname)
-                nb = nbformat.from_dict(nb_data)
-                output_fname = os.path.join(output_dir, fname) if output_dir else fname
-                with open(output_fname, 'w', encoding='utf-8') as f:
-                    nbformat.write(nb, f)
-                click.echo("✅")
-            except Exception as e:
-                errors[fname] = e
-                click.echo(f'❌ error running {fname}: {e}')
-
-        await nb.stop_kernel()
+        async with nb.start_kernel() as kernel:
+            click.echo(f"✅ Binder and kernel started successfully.")
+            # could think about asyncifying this whole loop
+            # for now, we run one notebook at a time to avoid overloading the binder
+            errors = {}
+            for fname in filenames:
+                try:
+                    click.echo(f"⌛️ Uploading {fname}...", nl=False)
+                    await nb.upload_local_notebook(fname)
+                    click.echo("✅")
+                    click.echo(f"⌛️ Executing {fname}...", nl=False)
+                    await kernel.execute_notebook(fname, timeout=nb_timeout,
+                                                env_vars=extra_env_vars)
+                    click.echo("✅")
+                    click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
+                    nb_data = await nb.get_contents(fname)
+                    nb = nbformat.from_dict(nb_data)
+                    output_fname = os.path.join(output_dir, fname) if output_dir else fname
+                    with open(output_fname, 'w', encoding='utf-8') as f:
+                        nbformat.write(nb, f)
+                    click.echo("✅")
+                except Exception as e:
+                    errors[fname] = e
+                    click.echo(f'❌ error running {fname}: {e}')
 
         if len(errors) > 0:
             raise RuntimeError(str(errors))

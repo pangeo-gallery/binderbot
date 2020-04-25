@@ -130,15 +130,14 @@ async def test_nbclient_run_code(local_notebook: LocalNotebookServer):
     async with aiohttp.ClientSession() as session:
         nbclient = binderbot.NotebookClient(session, local_notebook.url, local_notebook.token, log)
 
-        await nbclient.start_kernel()
-        stdout, stderr = await nbclient.run_code(f"""
-        print('hi')
-        """)
+        async with nbclient.start_kernel() as kernel:
+            stdout, stderr = await kernel.run_code(f"""
+            print('hi')
+            """)
 
         assert stderr.strip() == ""
         assert stdout.strip() == 'hi'
 
-        await nbclient.stop_kernel()
 
 @pytest.mark.asyncio
 async def test_upload(local_notebook: LocalNotebookServer):
@@ -146,21 +145,19 @@ async def test_upload(local_notebook: LocalNotebookServer):
     async with aiohttp.ClientSession() as session:
         nbclient = binderbot.NotebookClient(session, local_notebook.url, local_notebook.token, log)
 
-        await nbclient.start_kernel()
         fname = "example-notebook.ipynb"
         filepath = local_notebook.cwd / fname
         input_notebook = make_code_notebook(["print('hello')"])
         with open(filepath, 'w', encoding='utf-8') as f:
             nbformat.write(input_notebook, f)
 
-        await nbclient.execute_notebook(
-            fname,
-            timeout=60,
-            )
+        async with nbclient.start_kernel() as kernel:
+            await kernel.execute_notebook(
+                fname,
+                timeout=60,
+                )
         nb_data = await nbclient.get_contents(fname)
         nb = nbformat.from_dict(nb_data)
 
         cell1 = nb['cells'][0]['outputs'][0]['text']
         assert cell1 == "hello\n"
-
-        await nbclient.stop_kernel()
