@@ -39,6 +39,32 @@ def example_nb_data():
     return nbformat.from_dict(nbdata)
 
 
+@pytest.fixture()
+def binder_url():
+    return 'https://mybinder.org'
+
+@pytest.mark.asyncio
+async def test_binder_start_stop(binder_url):
+    """
+    Test that our binder starts and stops
+    """
+    async with binderbot.BinderUser(binder_url, 'binder-examples/requirements', 'master') as jovyan:
+        await jovyan.start_binder()
+        headers = {'Authorization': f'token {jovyan.token}'}
+        resp = await jovyan.session.get(
+            jovyan.notebook_url / 'api/status',
+            headers=headers
+        )
+        assert resp.status == 200
+
+        await jovyan.shutdown_binder()
+        resp = await jovyan.session.get(
+            jovyan.notebook_url / 'api/status',
+            headers=headers
+        )
+
+        assert resp.status == 503
+
 def test_cli_upload_execute_download(tmp_path, example_nb_data):
     """Test the CLI."""
 
@@ -64,7 +90,3 @@ def test_cli_upload_execute_download(tmp_path, example_nb_data):
     assert hostname.startswith('jupyter-binder-')
     remote_env_var_value = nb['cells'][1]['outputs'][0]['text']
     assert remote_env_var_value.rstrip() == env['MY_VAR']
-
-    # help_result = runner.invoke(cli.main, ['--help'])
-    # assert help_result.exit_code == 0
-    # assert '--help  Show this message and exit.' in help_result.output

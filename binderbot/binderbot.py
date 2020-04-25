@@ -94,10 +94,22 @@ class BinderUser:
         self.state = BinderUser.States.BINDER_STARTED
 
     async def shutdown_binder(self):
-        # TODO: figure out how to shut down the binder using the API
-        # can we use the jupyterhub API:
-        # https://jupyterhub.readthedocs.io/en/stable/reference/rest.html#enabling-users-to-spawn-multiple-named-servers-via-the-api
-        pass
+        """
+        Shut down running binder instance.
+        """
+        if self.state != BinderUser.States.KERNEL_STARTED:
+            await self.start_kernel()
+        # Ideally, we will talk to the hub API to shut this down
+        # However, the token we get is just a notebook auth token, *not* a hub auth otken
+        # So we can't make requests to the hub API.
+        # FIXME: Provide hub auth tokens from binderhub API
+        await self.run_code("""
+        import os
+        import signal
+        # FIXME: Wait a bit, and send SIGKILL otherwise
+        os.kill(1, signal.SIGTERM)
+        """)
+        self.state = BinderUser.States.CLEAR
 
     async def start_kernel(self):
         assert self.state == BinderUser.States.BINDER_STARTED

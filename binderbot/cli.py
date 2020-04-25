@@ -86,9 +86,8 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
         if len(errors) > 0:
             raise RuntimeError(str(errors))
 
-        # TODO: shut down binder
-        # await jovyan.shutdown_binder()
-        # can we do this with a context manager so that it shuts down in case of errors?
+        # TODO: can we do this with a context manager so that it shuts down in case of errors?
+        await jovyan.shutdown_binder()
 
 
 if __name__ == "__main__":
