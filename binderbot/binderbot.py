@@ -20,12 +20,6 @@ logger = structlog.get_logger()
 
 
 class BinderUser:
-    class States(Enum):
-        CLEAR = 1
-        # LOGGED_IN = 2
-        BINDER_STARTED = 3
-        KERNEL_STARTED = 4
-
     async def __aenter__(self):
         self.session = aiohttp.ClientSession(headers={'User-Agent': 'BinderBot-cli v0.1'})
         return self
@@ -41,7 +35,6 @@ class BinderUser:
         self.binder_url = URL(binder_url)
         self.repo = repo
         self.ref = ref
-        self.state = BinderUser.States.CLEAR
         self.log = logger.bind()
 
     async def start_binder(self, timeout=3000, spawn_refresh_time=20):
@@ -76,9 +69,6 @@ class BinderUser:
                     raise OperationError()
                 self.log.msg(f'Binder: Waiting on event stream (phase: {phase})', action='binder-start', phase='event-stream')
 
-
-        # todo: double check phase is really always "ready" at this point
-        self.state = BinderUser.States.BINDER_STARTED
 
     async def shutdown_binder(self):
         """
