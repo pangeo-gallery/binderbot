@@ -202,7 +202,6 @@ class BinderUser:
                         self.log.msg(
                             'WS: Unexpected message type',
                             action='code-execute', phase='failure',
-                            iteration=iteration,
                             message_type=msg_text.type, message=str(msg_text),
                             duration=time.monotonic() - exec_start_time
                         )
