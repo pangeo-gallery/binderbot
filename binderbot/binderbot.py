@@ -97,29 +97,41 @@ class BinderUser:
         """
         Shut down running binder instance.
         """
-        if self.state != BinderUser.States.KERNEL_STARTED:
-            await self.start_kernel()
         # Ideally, we will talk to the hub API to shut this down
         # However, the token we get is just a notebook auth token, *not* a hub auth otken
         # So we can't make requests to the hub API.
         # FIXME: Provide hub auth tokens from binderhub API
-        await self.run_code("""
+        nbclient = NotebookClient(self.session, self.notebook_url, self.token, self.log)
+        await nbclient.start_kernel()
+        await nbclient.run_code("""
         import os
         import signal
         # FIXME: Wait a bit, and send SIGKILL otherwise
         os.kill(1, signal.SIGTERM)
         """)
-        self.state = BinderUser.States.CLEAR
+
+
+class NotebookClient:
+    """
+    Client for doing operations against a notebook server
+    """
+    def __init__(self, session: aiohttp.ClientSession, url: URL, token: str, log: structlog.BoundLogger):
+        # FIXME: If we get this from BinderBot, will it close properly?
+        self.session = session
+        self.url = url
+        self.token = token
+        self.log = log
+
+        self.auth_headers = {
+            'Authorization': f'token {self.token}'
+        }
 
     async def start_kernel(self):
-        assert self.state == BinderUser.States.BINDER_STARTED
-
         self.log.msg('Kernel: Starting', action='kernel-start', phase='start')
         start_time = time.monotonic()
 
         try:
-            headers = {'Authorization': f'token {self.token}'}
-            resp = await self.session.post(self.notebook_url / 'api/kernels', headers=headers)
+            resp = await self.session.post(self.url / 'api/kernels', headers=self.auth_headers)
         except Exception as e:
             self.log.msg('Kernel: Start failed {}'.format(str(e)), action='kernel-start', phase='failed', duration=time.monotonic() - start_time)
             raise OperationError()
@@ -133,13 +145,10 @@ class BinderUser:
 
 
     async def stop_kernel(self):
-        assert self.state == BinderUser.States.KERNEL_STARTED
-
         self.log.msg('Kernel: Stopping', action='kernel-stop', phase='start')
         start_time = time.monotonic()
         try:
-            headers = {'Authorization': f'token {self.token}'}
-            resp = await self.session.delete(self.notebook_url / 'api/kernels' / self.kernel_id, headers=headers)
+            resp = await self.session.delete(self.url / 'api/kernels' / self.kernel_id, headers=self.auth_headers)
         except Exception as e:
             self.log.msg('Kernel:Failed Stopped {}'.format(str(e)), action='kernel-stop', phase='failed')
             raise OperationError()
@@ -149,21 +158,17 @@ class BinderUser:
             raise OperationError()
 
         self.log.msg('Kernel: Stopped', action='kernel-stop', phase='complete')
-        self.state = BinderUser.States.BINDER_STARTED
 
     # https://github.com/jupyter/jupyter/wiki/Jupyter-Notebook-Server-API#notebook-and-file-contents-api
     async def get_contents(self, path):
-        headers = {'Authorization': f'token {self.token}'}
-        resp = await self.session.get(self.notebook_url / 'api/contents' / path, headers=headers)
+        resp = await self.session.get(self.url / 'api/contents' / path, headers=self.auth_headers)
         resp_json = await resp.json()
         return resp_json['content']
 
-
     async def put_contents(self, path, nb_data):
-        headers = {'Authorization': f'token {self.token}'}
         data = {'content': nb_data, "type": "notebook"}
-        resp = await self.session.put(self.notebook_url / 'api/contents' / path,
-                                      json=data, headers=headers)
+        resp = await self.session.put(self.url / 'api/contents' / path,
+                                      json=data, headers=self.auth_headers)
         resp.raise_for_status()
 
     def request_execute_code(self, msg_id, code):
@@ -191,9 +196,7 @@ class BinderUser:
 
     async def run_code(self, code):
         """Run code and return stdout, stderr."""
-        assert self.state == BinderUser.States.KERNEL_STARTED
-
-        channel_url = self.notebook_url / 'api/kernels' / self.kernel_id / 'channels'
+        channel_url = self.url / 'api/kernels' / self.kernel_id / 'channels'
         self.log.msg('WS: Connecting', action='kernel-connect', phase='start')
         is_connected = False
         try:

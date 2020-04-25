@@ -7,7 +7,7 @@ import sys
 import click
 import nbformat
 
-from .binderbot import BinderUser
+from .binderbot import BinderUser, NotebookClient
 
 # https://github.com/pallets/click/issues/85#issuecomment-43378930
 def coro(f):
@@ -56,7 +56,8 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
     # inputs look good, start up binder
     async with BinderUser(binder_url, repo, ref) as jovyan:
         await jovyan.start_binder(timeout=binder_start_timeout)
-        await jovyan.start_kernel()
+        nb = NotebookClient(jovyan.session, jovyan.notebook_url, jovyan.token, jovyan.log)
+        await nb.start_kernel()
         click.echo(f"✅ Binder and kernel started successfully.")
         # could think about asyncifying this whole loop
         # for now, we run one notebook at a time to avoid overloading the binder
@@ -64,14 +65,14 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
         for fname in filenames:
             try:
                 click.echo(f"⌛️ Uploading {fname}...", nl=False)
-                await jovyan.upload_local_notebook(fname)
+                await nb.upload_local_notebook(fname)
                 click.echo("✅")
                 click.echo(f"⌛️ Executing {fname}...", nl=False)
-                await jovyan.execute_notebook(fname, timeout=nb_timeout,
+                await nb.execute_notebook(fname, timeout=nb_timeout,
                                               env_vars=extra_env_vars)
                 click.echo("✅")
                 click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
-                nb_data = await jovyan.get_contents(fname)
+                nb_data = await nb.get_contents(fname)
                 nb = nbformat.from_dict(nb_data)
                 output_fname = os.path.join(output_dir, fname) if output_dir else fname
                 with open(output_fname, 'w', encoding='utf-8') as f:
@@ -81,7 +82,7 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
                 errors[fname] = e
                 click.echo(f'❌ error running {fname}: {e}')
 
-        await jovyan.stop_kernel()
+        await nb.stop_kernel()
 
         if len(errors) > 0:
             raise RuntimeError(str(errors))
