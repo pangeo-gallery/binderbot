@@ -30,4 +30,8 @@ jobs:
     - name: Test with pytest
       run: |
         pip install -r dev-requirements.txt
-        pytest tests/
+        pytest --cov=binderbot tests/
+    - name: Upload coverage stats to codecov.io
+      run: |
+        pip install codecov
+        codecov
