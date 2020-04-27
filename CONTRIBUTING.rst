@@ -54,8 +54,8 @@ If you are proposing a feature:
 * Remember that this is a volunteer-driven project, and that contributions
   are welcome :)
 
-Get Started!
-------------
+Setting up a local development environment
+------------------------------------------
 
 Ready to contribute? Here's how to set up `binderbot` for local development.
 
@@ -87,7 +87,7 @@ Ready to contribute? Here's how to set up `binderbot` for local development.
 
 6. Commit your changes and push your branch to GitHub::
 
-    $ git add .
+    $ git add <names-of-files-you-have-changed>
     $ git commit -m "Your detailed description of your changes."
     $ git push origin name-of-your-bugfix-or-feature
 
