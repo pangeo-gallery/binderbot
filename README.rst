@@ -22,7 +22,7 @@ A simple CLI to interact with binder.
 Example Usage
 -------------
 
-.. code-block::
+.. code:: python
 
    $ python -m binderbot.cli --help
    Usage: cli.py [OPTIONS] [FILENAMES]...

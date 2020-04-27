@@ -8,7 +8,6 @@ Welcome to Binderbot's documentation!
    readme
    installation
    usage
-   modules
    contributing
    history
 
