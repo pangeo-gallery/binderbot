@@ -16,6 +16,10 @@ Binderbot
 .. image:: https://img.shields.io/github/license/pangeo-gallery/binderbot
         :alt: GitHub
 
+.. image:: https://codecov.io/gh/pangeo-gallery/binderbot/branch/master/graph/badge.svg
+           :target:https://codecov.io/gh/pangeo-gallery/binderbot
+           :alt: Code coverage status
+
 
 A simple CLI to interact with binder.
 
