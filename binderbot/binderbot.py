@@ -4,8 +4,10 @@ Much of this code was adopted from Hubtraf, by Yuvi Panda:
 https://github.com/yuvipanda/hubtraf/blob/master/hubtraf/user.py
 """
 
+import os
 from enum import Enum, auto
 import aiohttp
+import pathlib
 import socket
 import uuid
 import random
@@ -119,7 +121,6 @@ class BinderUser:
         self.log.msg('Kernel: Started', action='kernel-start', phase='complete')
         self.state = BinderUser.States.KERNEL_STARTED
 
-
     async def stop_kernel(self):
         assert self.state == BinderUser.States.KERNEL_STARTED
 
@@ -145,7 +146,6 @@ class BinderUser:
         resp = await self.session.get(self.notebook_url / 'api/contents' / path, headers=headers)
         resp_json = await resp.json()
         return resp_json['content']
-
 
     async def put_contents(self, path, nb_data):
         headers = {'Authorization': f'token {self.token}'}
@@ -175,7 +175,6 @@ class BinderUser:
             "parent_header": {},
             "channel": "shell"
         }
-
 
     async def run_code(self, code):
         """Run code and return stdout, stderr."""
@@ -258,7 +257,6 @@ class BinderUser:
                 self.log.msg('WS: Failed {}'.format(str(e)), action='kernel-connect', phase='failure')
             raise OperationError()
 
-
     async def list_notebooks(self):
         code = """
         import os, fnmatch, json
@@ -294,6 +292,40 @@ class BinderUser:
         nb = open_nb_and_strip_output(notebook_filename)
         # probably want to use basename instead
         await self.put_contents(notebook_filename, nb)
+
+    async def run(self, filenames, binder_start_timeout=600, nb_timeout=600,
+                  extra_env_vars=None, download=True, output_dir="."):
+
+        extra_env_vars = extra_env_vars or {}
+        output_dir = pathlib.Path(output_dir)
+
+        async with self as jovyan:
+            await jovyan.start_binder(timeout=binder_start_timeout)
+            await jovyan.start_kernel()
+            print("✅ Binder and kernel started successfully.")
+            # could think about asyncifying this whole loop
+            # for now, we run one notebook at a time to avoid overloading the binder
+            errors = {}
+            for fname in filenames:
+                try:
+                    print(f"⌛️ Uploading {fname}...", end="", flush=False)
+                    await jovyan.upload_local_notebook(fname)
+                    print("✅", flush=True)
+                    print(f"⌛️ Executing {fname}...", end="", flush=False)
+                    await jovyan.execute_notebook(fname, timeout=nb_timeout,
+                                                  env_vars=extra_env_vars)
+                    print("✅", flush=True)
+                    if download:
+                        print(f"⌛️ Downloading and saving {fname}...")
+                        nb_data = await jovyan.get_contents(fname)
+                        nb = nbformat.from_dict(nb_data)
+                        output = output_dir / fname
+                        with output.open('w', encoding='utf-8') as f:
+                            nbformat.write(nb, f)
+                        print("✅")
+                except Exception as e:
+                    errors[fname] = e
+                    print(f'❌ error running {fname}: {e}')
 
 
 def open_nb_and_strip_output(fname):

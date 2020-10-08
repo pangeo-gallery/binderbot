@@ -32,10 +32,12 @@ def coro(f):
               help="Maximum time (in seconds) to wait for binder to start.")
 @click.option("--pass-env-var", "-e", multiple=True,
               help="Environment variables to pass to the binder execution environment.")
+@click.option("--download/--no-download", default=True,
+              help="Whether to use download the executed notebooks.")
 @click.argument('filenames', nargs=-1, type=click.Path(exists=True))
 @coro
 async def main(binder_url, repo, ref, output_dir, nb_timeout,
-               binder_start_timeout, pass_env_var, filenames):
+               binder_start_timeout, pass_env_var, download, filenames):
     """Run local notebooks on a remote binder."""
 
     # validate filename inputs
@@ -55,40 +57,11 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
 
     # inputs look good, start up binder
     async with BinderUser(binder_url, repo, ref) as jovyan:
-        await jovyan.start_binder(timeout=binder_start_timeout)
-        await jovyan.start_kernel()
-        click.echo(f"✅ Binder and kernel started successfully.")
-        # could think about asyncifying this whole loop
-        # for now, we run one notebook at a time to avoid overloading the binder
-        errors = {}
-        for fname in filenames:
-            try:
-                click.echo(f"⌛️ Uploading {fname}...", nl=False)
-                await jovyan.upload_local_notebook(fname)
-                click.echo("✅")
-                click.echo(f"⌛️ Executing {fname}...", nl=False)
-                await jovyan.execute_notebook(fname, timeout=nb_timeout,
-                                              env_vars=extra_env_vars)
-                click.echo("✅")
-                click.echo(f"⌛️ Downloading and saving {fname}...", nl=False)
-                nb_data = await jovyan.get_contents(fname)
-                nb = nbformat.from_dict(nb_data)
-                output_fname = os.path.join(output_dir, fname) if output_dir else fname
-                with open(output_fname, 'w', encoding='utf-8') as f:
-                    nbformat.write(nb, f)
-                click.echo("✅")
-            except Exception as e:
-                errors[fname] = e
-                click.echo(f'❌ error running {fname}: {e}')
-
-        await jovyan.stop_kernel()
-
-        if len(errors) > 0:
-            raise RuntimeError(str(errors))
-
-        # TODO: shut down binder
-        # await jovyan.shutdown_binder()
-        # can we do this with a context manager so that it shuts down in case of errors?
+        await jovyan.run(filenames,
+                         binder_start_timeout=binder_start_timeout,
+                         nb_timeout=nb_timeout,
+                         extra_env_vars=extra_env_vars, download=download,
+                         output_dir=output_dir)
 
 
 if __name__ == "__main__":
