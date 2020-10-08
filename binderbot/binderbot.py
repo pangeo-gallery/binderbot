@@ -297,7 +297,7 @@ class BinderUser:
                   extra_env_vars=None, download=True, output_dir="."):
 
         extra_env_vars = extra_env_vars or {}
-        output_dir = pathlib.Path(output_dir)
+        output_dir = pathlib.Path(output_dir or ".")
 
         async with self as jovyan:
             await jovyan.start_binder(timeout=binder_start_timeout)
