@@ -57,11 +57,17 @@ async def main(binder_url, repo, ref, output_dir, nb_timeout,
 
     # inputs look good, start up binder
     async with BinderUser(binder_url, repo, ref) as jovyan:
-        await jovyan.run(filenames,
-                         binder_start_timeout=binder_start_timeout,
-                         nb_timeout=nb_timeout,
-                         extra_env_vars=extra_env_vars, download=download,
-                         output_dir=output_dir)
+        errors = await jovyan.run(filenames,
+                                  binder_start_timeout=binder_start_timeout,
+                                  nb_timeout=nb_timeout,
+                                  extra_env_vars=extra_env_vars,
+                                  download=download,
+                                  output_dir=output_dir)
+
+        await jovyan.stop_kernel()
+
+        if len(errors) > 0:
+            raise RuntimeError(str(errors))
 
 
 if __name__ == "__main__":

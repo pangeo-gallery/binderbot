@@ -326,6 +326,7 @@ class BinderUser:
                 except Exception as e:
                     errors[fname] = e
                     print(f'❌ error running {fname}: {e}')
+        return errors
 
 
 def open_nb_and_strip_output(fname):
