@@ -299,33 +299,33 @@ class BinderUser:
         extra_env_vars = extra_env_vars or {}
         output_dir = pathlib.Path(output_dir or ".")
 
-        async with self as jovyan:
-            await jovyan.start_binder(timeout=binder_start_timeout)
-            await jovyan.start_kernel()
-            print("✅ Binder and kernel started successfully.")
-            # could think about asyncifying this whole loop
-            # for now, we run one notebook at a time to avoid overloading the binder
-            errors = {}
-            for fname in filenames:
-                try:
-                    print(f"⌛️ Uploading {fname}...", end="", flush=False)
-                    await jovyan.upload_local_notebook(fname)
-                    print("✅", flush=True)
-                    print(f"⌛️ Executing {fname}...", end="", flush=False)
-                    await jovyan.execute_notebook(fname, timeout=nb_timeout,
-                                                  env_vars=extra_env_vars)
-                    print("✅", flush=True)
-                    if download:
-                        print(f"⌛️ Downloading and saving {fname}...")
-                        nb_data = await jovyan.get_contents(fname)
-                        nb = nbformat.from_dict(nb_data)
-                        output = output_dir / fname
-                        with output.open('w', encoding='utf-8') as f:
-                            nbformat.write(nb, f)
-                        print("✅")
-                except Exception as e:
-                    errors[fname] = e
-                    print(f'❌ error running {fname}: {e}')
+        # It's assumed that we've started.
+        await self.start_binder(timeout=binder_start_timeout)
+        await self.start_kernel()
+        print("✅ Binder and kernel started successfully.")
+        # could think about asyncifying this whole loop
+        # for now, we run one notebook at a time to avoid overloading the binder
+        errors = {}
+        for fname in filenames:
+            try:
+                print(f"⌛️ Uploading {fname}...", end="", flush=False)
+                await self.upload_local_notebook(fname)
+                print("✅", flush=True)
+                print(f"⌛️ Executing {fname}...", end="", flush=False)
+                await self.execute_notebook(fname, timeout=nb_timeout,
+                                            env_vars=extra_env_vars)
+                print("✅", flush=True)
+                if download:
+                    print(f"⌛️ Downloading and saving {fname}...")
+                    nb_data = await self.get_contents(fname)
+                    nb = nbformat.from_dict(nb_data)
+                    output = output_dir / fname
+                    with output.open('w', encoding='utf-8') as f:
+                        nbformat.write(nb, f)
+                    print("✅")
+            except Exception as e:
+                errors[fname] = e
+                print(f'❌ error running {fname}: {e}')
         return errors
 
 
